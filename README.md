@@ -1,1 +1,1 @@
-# frontend-adminpage
+# 관리자가 컴퓨터로 확인하는 페이지
