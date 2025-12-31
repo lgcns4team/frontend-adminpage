@@ -60,7 +60,7 @@ function toMd(d: Date) {
   return `${mm}/${dd}`;
 }
 
-/** ✅ Date -> YYYY-MM-DD string(로컬) 기반으로 파싱 안정화 */
+/**  Date -> YYYY-MM-DD string(로컬) 기반으로 파싱 안정화 */
 function ymdToDate(ymd: string) {
   // "2025-12-16" -> 로컬 자정 Date
   const [y, m, d] = ymd.split("-").map(Number);
@@ -180,7 +180,7 @@ export default function Dashboard() {
     return logs.filter((l) => inRangeDay(l.ts, applied.start, applied.end));
   }, [logs, applied.start, applied.end]);
 
-  /** ✅ 전체 데이터 존재 여부 (기간 필터 결과 기준) */
+  /**  전체 데이터 존재 여부 (기간 필터 결과 기준) */
   const hasData = filtered.length > 0;
 
   /** ----- KPI (총매출/주문건수) ----- */
@@ -191,7 +191,7 @@ export default function Dashboard() {
   }, [filtered]);
 
   /**
-   * ✅ 일간 매출(BarChart) — "항상 최근 7일(오늘 기준)" 고정
+   *  일간 매출(BarChart) — "항상 최근 7일(오늘 기준)" 고정
    * - applied/period 상관없이 최근 7일만 표시
    * - 데이터 집계는 logs(전체 원본) 기준
    */
@@ -229,7 +229,7 @@ export default function Dashboard() {
     return rows;
   }, [logs]);
 
-  /** ✅ 일간 매출이 실제로 0이 아닌 값이 있는지 (최근7일 기준) */
+  /**  일간 매출이 실제로 0이 아닌 값이 있는지 (최근7일 기준) */
   const hasDailyData = dailyChartData.some((d) => d.sales > 0);
 
   /** ----- 시간대별 매출(LineChart) ----- */
@@ -455,7 +455,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* ✅ 일간 매출: 항상 최근 7일 */}
+          {/*  일간 매출: 항상 최근 7일 */}
           <Card>
             <CardHeader>
               <CardTitle>일간 매출 (최근 7일)</CardTitle>
@@ -507,13 +507,42 @@ export default function Dashboard() {
         </div>
 
         {/* 인기메뉴 TOP5 */}
+        {/* 인기메뉴 TOP5 */}
         <Card>
           <CardHeader>
             <CardTitle>인기메뉴 TOP5</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center">
+
+          <CardContent>
             {hasData && topMenuData.length > 0 ? (
-              <TopMenuDonut data={topMenuData} />
+              <div className="flex items-center justify-center gap-10">
+                {/* 도넛 */}
+                <TopMenuDonut data={topMenuData} />
+
+                {/* 리스트 */}
+                <div className="min-w-[220px]">
+                  <ul className="space-y-3 text-lg font-semibold text-gray-800">
+                    {topMenuData.map((m, idx) => (
+                      <li
+                        key={m.name}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-3">
+                          <span className="w-7 text-gray-400 font-bold">
+                            {idx + 1}.
+                          </span>
+                          <span> {m.name}</span>
+                        </span>
+
+                        {/* 건수 표시(원하면 %)로 바꿀 수 있음 */}
+                        <span className="text-gray-500 text-base font-bold">
+                          {m.value}건
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             ) : (
               <EmptyState />
             )}
