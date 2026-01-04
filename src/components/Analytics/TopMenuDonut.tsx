@@ -5,7 +5,7 @@ type Item = { name: string; value: number };
 
 export default function TopMenuDonut({ data }: { data: Item[] }) {
   return (
-    <div className="h-[240px] w-full">
+    <div className="h-[240px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
