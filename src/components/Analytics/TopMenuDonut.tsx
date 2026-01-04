@@ -18,9 +18,9 @@ export default function TopMenuDonut({ data }: { data: Item[] }) {
             stroke="none"
           />
           <Tooltip
-            formatter={(value: number, name: string) => [
-              value.toLocaleString(),
-              name,
+            formatter={(value, name) => [
+              (value ?? 0).toLocaleString(),
+              name ?? "",
             ]}
           />
         </PieChart>
