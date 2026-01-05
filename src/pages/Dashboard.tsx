@@ -12,6 +12,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -55,8 +56,9 @@ export default function Dashboard() {
     end: todayStr(),
   });
 
-  // API 데이터
-  const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
+  // API 데이터 (KPI용 / 차트용 분리)
+  const [kpiData, setKpiData] = useState<DashboardSummary | null>(null);
+  const [chartData, setChartData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +77,7 @@ export default function Dashboard() {
     setApplied({ start, end });
   };
 
-  // API 호출 - applied 변경 시마다
+  // API 호출 - KPI와 차트 데이터 분리
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
@@ -83,13 +85,32 @@ export default function Dashboard() {
         setError(null);
 
         console.log('대시보드 데이터 조회:', applied.start, '~', applied.end);
-        const data = await getDashboardSummary({
+        
+        // 1. KPI용 데이터 (선택한 기간 그대로)
+        const kpiResponse = await getDashboardSummary({
           startDate: applied.start,
           endDate: applied.end,
         });
-        console.log('대시보드 데이터 조회 성공:', data);
-
-        setDashboardData(data);
+        setKpiData(kpiResponse);
+        
+        // 2. 차트용 데이터 (단일 날짜면 7일로 확장)
+        let chartStartDate = applied.start;
+        let chartEndDate = applied.end;
+        
+        if (applied.start === applied.end) {
+          const endDate = new Date(applied.end);
+          const startDate = new Date(endDate);
+          startDate.setDate(endDate.getDate() - 6); // 7일 (오늘 포함)
+          chartStartDate = toYmd(startDate);
+        }
+        
+        const chartResponse = await getDashboardSummary({
+          startDate: chartStartDate,
+          endDate: chartEndDate,
+        });
+        setChartData(chartResponse);
+        
+        console.log('대시보드 데이터 조회 성공');
       } catch (err) {
         console.error('대시보드 데이터 조회 실패:', err);
         setError('대시보드 데이터를 불러오는데 실패했습니다.');
@@ -102,65 +123,71 @@ export default function Dashboard() {
   }, [applied.start, applied.end]);
 
   // 데이터 존재 여부
-  const hasData = dashboardData !== null && dashboardData.totalOrders > 0;
+  const hasData = kpiData !== null && kpiData.totalOrders > 0;
 
-  // KPI
+  // KPI (선택한 기간 데이터)
   const kpi = useMemo(() => {
-    if (!dashboardData) return { totalSales: 0, totalOrders: 0, avgOrderAmount: 0 };
+    if (!kpiData) return { totalSales: 0, totalOrders: 0, avgOrderAmount: 0 };
     return {
-      totalSales: dashboardData.totalSales,
-      totalOrders: dashboardData.totalOrders,
-      avgOrderAmount: dashboardData.avgOrderAmount,
+      totalSales: kpiData.totalSales,
+      totalOrders: kpiData.totalOrders,
+      avgOrderAmount: kpiData.avgOrderAmount,
     };
-  }, [dashboardData]);
+  }, [kpiData]);
 
-  // 시간대별 매출 차트 데이터 (10시~16시)
+  // 시간대별 매출 차트 데이터 (KPI 기간)
   const hourlyChartData = useMemo(() => {
-    if (!dashboardData || !dashboardData.hourlySales) return [];
-    return dashboardData.hourlySales.map(h => ({
+    if (!kpiData || !kpiData.hourlySales) return [];
+    return kpiData.hourlySales.map(h => ({
       label: h.timeLabel,
       sales: h.amount,
     }));
-  }, [dashboardData]);
+  }, [kpiData]);
 
-  // 일간 매출 차트 데이터
+  // 일간 매출 차트 데이터 (7일 확장 데이터)
   const dailyChartData = useMemo(() => {
-    if (!dashboardData || !dashboardData.dailySales) return [];
-    return dashboardData.dailySales.map(d => ({
+    if (!chartData || !chartData.dailySales) return [];
+    
+    // 단일 날짜 선택 시에만 강조 (오늘/어제)
+    const shouldHighlight = applied.start === applied.end;
+    const selectedDate = applied.end;
+    
+    return chartData.dailySales.map(d => ({
       day: d.dateLabel,
       sales: d.amount,
+      isSelected: shouldHighlight && d.date === selectedDate,
     }));
-  }, [dashboardData]);
+  }, [chartData, applied.start, applied.end]);
 
   const hasDailyData = dailyChartData.some(d => d.sales > 0);
 
-  // 성별 도넛 데이터
+  // 성별 도넛 데이터 (KPI 기간)
   const genderData = useMemo(() => {
-    if (!dashboardData || !dashboardData.genderRatio) return [];
-    const { genderRatio } = dashboardData;
+    if (!kpiData || !kpiData.genderRatio) return [];
+    const { genderRatio } = kpiData;
     return [
       { name: "남성", value: genderRatio.maleCount },
       { name: "여성", value: genderRatio.femaleCount },
     ];
-  }, [dashboardData]);
+  }, [kpiData]);
 
-  // 연령대 도넛 데이터
+  // 연령대 도넛 데이터 (KPI 기간)
   const ageData = useMemo(() => {
-    if (!dashboardData || !dashboardData.ageGroupRatios) return [];
-    return dashboardData.ageGroupRatios.map(a => ({
+    if (!kpiData || !kpiData.ageGroupRatios) return [];
+    return kpiData.ageGroupRatios.map(a => ({
       name: a.ageGroup,
       value: a.count,
     }));
-  }, [dashboardData]);
+  }, [kpiData]);
 
-  // 인기메뉴 도넛 + 리스트 데이터
+  // 인기메뉴 도넛 + 리스트 데이터 (KPI 기간)
   const topMenuData = useMemo(() => {
-    if (!dashboardData || !dashboardData.popularMenus) return [];
-    return dashboardData.popularMenus.map(m => ({
+    if (!kpiData || !kpiData.popularMenus) return [];
+    return kpiData.popularMenus.map(m => ({
       name: m.menuName,
       value: m.orderCount,
     }));
-  }, [dashboardData]);
+  }, [kpiData]);
 
   // 로딩 중
   if (loading) {
@@ -187,7 +214,7 @@ export default function Dashboard() {
             <div className="text-center">
               <div className="mb-2 text-lg font-semibold text-red-500">{error}</div>
               <div className="text-sm text-gray-400 mb-4">
-                서버가 실행 중인지 확인해주세요
+                백엔드 서버가 실행 중인지 확인해주세요 (localhost:8080)
               </div>
               <Button variant="outline" onClick={() => window.location.reload()}>
                 새로고침
@@ -357,7 +384,11 @@ export default function Dashboard() {
           {/* 일간 매출 */}
           <Card>
             <CardHeader>
-              <CardTitle>일간 매출</CardTitle>
+              <CardTitle>
+                {applied.start === applied.end 
+                  ? "일간 매출 (최근 7일)" 
+                  : `일간 매출 (${applied.start} ~ ${applied.end})`}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[240px] w-full">
@@ -392,9 +423,15 @@ export default function Dashboard() {
                       />
                       <Bar
                         dataKey="sales"
-                        fill="#111827"
                         radius={[8, 8, 0, 0]}
-                      />
+                      >
+                        {dailyChartData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.isSelected ? "#f06f6fff" : "#111827"} 
+                          />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -413,11 +450,10 @@ export default function Dashboard() {
 
           <CardContent>
             {hasData && topMenuData.length > 0 ? (
-              <div className="flex items-center justify-center gap-10 w-full">
+              <div className="flex items-center justify-center gap-10">
                 {/* 도넛 */}
-                <div className="flex-1 min-w-0">
-                  <TopMenuDonut data={topMenuData} />
-                </div>
+                <TopMenuDonut data={topMenuData} />
+
                 {/* 리스트 */}
                 <div className="min-w-[220px]">
                   <ul className="space-y-3 text-lg font-semibold text-gray-800">
