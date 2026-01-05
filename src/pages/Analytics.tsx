@@ -54,8 +54,8 @@ export default function Analytics() {
   };
 
   const applyCustomRange = () => {
-    if (!start || !end) return alert("시작일/종료일을 선택해줘!");
-    if (start > end) return alert("시작일이 종료일보다 늦어!");
+    if (!start || !end) return alert("시작일/종료일을 선택해주세요!");
+    if (start > end) return alert("시작일이 종료일보다 늦습니다!");
     setApplied({ start, end });
   };
 
@@ -145,7 +145,7 @@ export default function Analytics() {
           <div className="text-center">
             <div className="mb-2 text-lg font-semibold text-red-500">{error}</div>
             <div className="text-sm text-gray-400 mb-4">
-              백엔드 서버가 실행 중인지 확인해주세요
+              서버가 실행 중인지 확인해주세요
             </div>
             <Button variant="outline" onClick={() => window.location.reload()}>
               새로고침
