@@ -39,8 +39,9 @@ export default function Analytics() {
     end: todayStr(),
   });
 
-  // API 데이터
-  const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
+  // API 데이터 (KPI용 / 차트용 분리)
+  const [kpiData, setKpiData] = useState<DashboardSummary | null>(null);
+  const [chartData, setChartData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,12 +55,12 @@ export default function Analytics() {
   };
 
   const applyCustomRange = () => {
-    if (!start || !end) return alert("시작일/종료일을 선택해주세요!");
-    if (start > end) return alert("시작일이 종료일보다 늦습니다!");
+    if (!start || !end) return alert("시작일/종료일을 선택해줘!");
+    if (start > end) return alert("시작일이 종료일보다 늦어!");
     setApplied({ start, end });
   };
 
-  // API 호출
+  // API 호출 - KPI와 차트 데이터 분리
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -67,13 +68,32 @@ export default function Analytics() {
         setError(null);
         
         console.log('매출분석 데이터 조회:', applied.start, '~', applied.end);
-        const data = await getDashboardSummary({
+        
+        // 1. KPI용 데이터 (선택한 기간 그대로)
+        const kpiResponse = await getDashboardSummary({
           startDate: applied.start,
           endDate: applied.end,
         });
-        console.log('매출분석 데이터 조회 성공:', data);
+        setKpiData(kpiResponse);
         
-        setDashboardData(data);
+        // 2. 차트용 데이터 (단일 날짜면 7일로 확장)
+        let chartStartDate = applied.start;
+        let chartEndDate = applied.end;
+        
+        if (applied.start === applied.end) {
+          const endDate = new Date(applied.end);
+          const startDate = new Date(endDate);
+          startDate.setDate(endDate.getDate() - 6); // 7일 (오늘 포함)
+          chartStartDate = toYmd(startDate);
+        }
+        
+        const chartResponse = await getDashboardSummary({
+          startDate: chartStartDate,
+          endDate: chartEndDate,
+        });
+        setChartData(chartResponse);
+        
+        console.log('매출분석 데이터 조회 성공');
       } catch (err) {
         console.error('매출분석 데이터 조회 실패:', err);
         setError('데이터를 불러오는데 실패했습니다.');
@@ -85,32 +105,39 @@ export default function Analytics() {
     fetchData();
   }, [applied.start, applied.end]);
 
-  // KPI 계산
+  // KPI 계산 (선택한 기간 데이터)
   const kpi = useMemo(() => {
-    if (!dashboardData) return { totalSales: 0, totalOrders: 0, avgOrder: 0 };
+    if (!kpiData) return { totalSales: 0, totalOrders: 0, avgOrder: 0 };
     return {
-      totalSales: dashboardData.totalSales,
-      totalOrders: dashboardData.totalOrders,
-      avgOrder: Math.round(dashboardData.avgOrderAmount),
+      totalSales: kpiData.totalSales,
+      totalOrders: kpiData.totalOrders,
+      avgOrder: Math.round(kpiData.avgOrderAmount),
     };
-  }, [dashboardData]);
+  }, [kpiData]);
 
-  // 일별 매출 추이 데이터
+  // 일별 매출 추이 데이터 (7일 확장 데이터)
   const trendData = useMemo(() => {
-    if (!dashboardData || !dashboardData.dailySales) return [];
-    return dashboardData.dailySales.map(d => ({
+    if (!chartData || !chartData.dailySales) return [];
+    
+    // 단일 날짜 선택 시에만 강조 (오늘/어제)
+    const shouldHighlight = applied.start === applied.end;
+    const selectedDate = applied.end;
+    
+    return chartData.dailySales.map(d => ({
       date: d.dateLabel,
       sales: d.amount,
+      dayOfWeek: d.dayOfWeek,
+      isSelected: shouldHighlight && d.date === selectedDate,
     }));
-  }, [dashboardData]);
+  }, [chartData, applied.start, applied.end]);
 
-  // 요일별 매출 데이터
+  // 요일별 매출 데이터 (7일 확장 데이터)
   const weekdayData = useMemo(() => {
-    if (!dashboardData || !dashboardData.dailySales) return [];
+    if (!chartData || !chartData.dailySales) return [];
     
     // 요일별로 그룹화
     const weekdayMap = new Map<string, number>();
-    dashboardData.dailySales.forEach(d => {
+    chartData.dailySales.forEach(d => {
       const current = weekdayMap.get(d.dayOfWeek) || 0;
       weekdayMap.set(d.dayOfWeek, current + d.amount);
     });
@@ -121,7 +148,7 @@ export default function Analytics() {
       day: day + "요일",
       sales: weekdayMap.get(day) || 0,
     }));
-  }, [dashboardData]);
+  }, [chartData]);
 
   // 로딩 중
   if (loading) {
@@ -145,7 +172,7 @@ export default function Analytics() {
           <div className="text-center">
             <div className="mb-2 text-lg font-semibold text-red-500">{error}</div>
             <div className="text-sm text-gray-400 mb-4">
-              서버가 실행 중인지 확인해주세요
+              백엔드 서버가 실행 중인지 확인해주세요
             </div>
             <Button variant="outline" onClick={() => window.location.reload()}>
               새로고침
@@ -260,4 +287,4 @@ export default function Analytics() {
       )}
     </div>
   );
-};
+}
