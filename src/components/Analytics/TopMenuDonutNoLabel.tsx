@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell } from "recharts";
 
 type DonutDatum = { name: string; value: number };
 
@@ -7,33 +7,33 @@ type Props = {
   colors: readonly string[];
 };
 
+const SIZE = 220;
+
 export default function TopMenuDonutNoLabel({ data, colors }: Props) {
-  if (!data || data.length === 0) return null;
+  if (!Array.isArray(data) || data.length === 0) return null;
 
   return (
-    <div className="w-[220px] h-[220px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            dataKey="value"
-            nameKey="name"
-            cx="50%"
-            cy="50%"
-            innerRadius="62%"
-            outerRadius="88%"
-            paddingAngle={2}
-            cornerRadius={6}
-            isAnimationActive={false}
-            labelLine={false}
-            label={false} // ✅ TOP5는 라벨 완전 제거
-          >
-            {data.map((_, idx) => (
-              <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
+    <div className="flex-none min-w-0" style={{ width: SIZE, height: SIZE }}>
+      <PieChart width={SIZE} height={SIZE}>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          innerRadius={Math.round(SIZE * 0.31)} // 62% 느낌
+          outerRadius={Math.round(SIZE * 0.44)} // 88% 느낌
+          paddingAngle={2}
+          cornerRadius={6}
+          isAnimationActive={false}
+          labelLine={false}
+          label={false}
+        >
+          {data.map((_, idx) => (
+            <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />
+          ))}
+        </Pie>
+      </PieChart>
     </div>
   );
 }

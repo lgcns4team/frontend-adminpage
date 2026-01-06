@@ -358,7 +358,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="h-[240px] w-full">
                 {hasData && hourlyChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={240}>
                     <LineChart
                       data={hourlyChartData}
                       margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
@@ -414,7 +414,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="h-[240px] w-full">
                 {hasDailyData ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={240}>
                     <BarChart
                       data={dailyChartData}
                       margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
