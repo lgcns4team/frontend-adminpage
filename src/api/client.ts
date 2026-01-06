@@ -5,7 +5,8 @@ import axios from 'axios';
  * 백엔드 서버와 통신하기 위한 Axios 설정
  */
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/nok-nok/api',
+  // baseURL: 'http://localhost:8080/nok-nok/api',
+  baseURL: 'https://api.bfree-kiosk.com/nok-nok/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
