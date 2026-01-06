@@ -187,7 +187,7 @@ export default function Dashboard() {
     if (!kpiData || !kpiData.popularMenus) return [];
     return kpiData.popularMenus.map((m) => ({
       name: m.menuName,
-      value: m.orderCount,
+      value: m.totalQuantity,
     }));
   }, [kpiData]);
 
