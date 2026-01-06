@@ -327,11 +327,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="flex justify-center">
               {hasData && genderData.length > 0 ? (
-<<<<<<< HEAD
-                <TopMenuDonut data={genderData} />
-=======
                 <TopMenuDonut data={genderData} variant="gender" />
->>>>>>> admintest
               ) : (
                 <EmptyState />
               )}
@@ -450,11 +446,7 @@ export default function Dashboard() {
                         {dailyChartData.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-<<<<<<< HEAD
-                            fill={entry.isSelected ? "#f06f6fff" : "#111827"}
-=======
                             fill={entry.isSelected ? "#5c67ffff" : "#111827"}
->>>>>>> admintest
                           />
                         ))}
                       </Bar>
