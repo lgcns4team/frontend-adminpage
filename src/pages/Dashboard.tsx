@@ -1,5 +1,7 @@
 // src/pages/Dashboard.tsx
 import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_COLORS } from "../constants/colors";
+
 import {
   Card,
   CardContent,
@@ -22,9 +24,9 @@ import {
 } from "recharts";
 import { getDashboardSummary } from "../api/dashboard";
 import type { DashboardSummary } from "../api/dashboard";
+import TopMenuDonutNoLabel from "../components/Analytics/TopMenuDonutNoLabel";
 
 type Period = "today" | "yesterday" | "custom";
-
 /** ----- 유틸: yyyy-mm-dd ----- */
 function toYmd(d: Date) {
   const yyyy = d.getFullYear();
@@ -84,36 +86,36 @@ export default function Dashboard() {
         setLoading(true);
         setError(null);
 
-        console.log('대시보드 데이터 조회:', applied.start, '~', applied.end);
-        
+        console.log("대시보드 데이터 조회:", applied.start, "~", applied.end);
+
         // 1. KPI용 데이터 (선택한 기간 그대로)
         const kpiResponse = await getDashboardSummary({
           startDate: applied.start,
           endDate: applied.end,
         });
         setKpiData(kpiResponse);
-        
+
         // 2. 차트용 데이터 (단일 날짜면 7일로 확장)
         let chartStartDate = applied.start;
         let chartEndDate = applied.end;
-        
+
         if (applied.start === applied.end) {
           const endDate = new Date(applied.end);
           const startDate = new Date(endDate);
           startDate.setDate(endDate.getDate() - 6); // 7일 (오늘 포함)
           chartStartDate = toYmd(startDate);
         }
-        
+
         const chartResponse = await getDashboardSummary({
           startDate: chartStartDate,
           endDate: chartEndDate,
         });
         setChartData(chartResponse);
-        
-        console.log('대시보드 데이터 조회 성공');
+
+        console.log("대시보드 데이터 조회 성공");
       } catch (err) {
-        console.error('대시보드 데이터 조회 실패:', err);
-        setError('대시보드 데이터를 불러오는데 실패했습니다.');
+        console.error("대시보드 데이터 조회 실패:", err);
+        setError("대시보드 데이터를 불러오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
@@ -138,7 +140,7 @@ export default function Dashboard() {
   // 시간대별 매출 차트 데이터 (KPI 기간)
   const hourlyChartData = useMemo(() => {
     if (!kpiData || !kpiData.hourlySales) return [];
-    return kpiData.hourlySales.map(h => ({
+    return kpiData.hourlySales.map((h) => ({
       label: h.timeLabel,
       sales: h.amount,
     }));
@@ -147,19 +149,19 @@ export default function Dashboard() {
   // 일간 매출 차트 데이터 (7일 확장 데이터)
   const dailyChartData = useMemo(() => {
     if (!chartData || !chartData.dailySales) return [];
-    
+
     // 단일 날짜 선택 시에만 강조 (오늘/어제)
     const shouldHighlight = applied.start === applied.end;
     const selectedDate = applied.end;
-    
-    return chartData.dailySales.map(d => ({
+
+    return chartData.dailySales.map((d) => ({
       day: d.dateLabel,
       sales: d.amount,
       isSelected: shouldHighlight && d.date === selectedDate,
     }));
   }, [chartData, applied.start, applied.end]);
 
-  const hasDailyData = dailyChartData.some(d => d.sales > 0);
+  const hasDailyData = dailyChartData.some((d) => d.sales > 0);
 
   // 성별 도넛 데이터 (KPI 기간)
   const genderData = useMemo(() => {
@@ -174,7 +176,7 @@ export default function Dashboard() {
   // 연령대 도넛 데이터 (KPI 기간)
   const ageData = useMemo(() => {
     if (!kpiData || !kpiData.ageGroupRatios) return [];
-    return kpiData.ageGroupRatios.map(a => ({
+    return kpiData.ageGroupRatios.map((a) => ({
       name: a.ageGroup,
       value: a.count,
     }));
@@ -183,7 +185,7 @@ export default function Dashboard() {
   // 인기메뉴 도넛 + 리스트 데이터 (KPI 기간)
   const topMenuData = useMemo(() => {
     if (!kpiData || !kpiData.popularMenus) return [];
-    return kpiData.popularMenus.map(m => ({
+    return kpiData.popularMenus.map((m) => ({
       name: m.menuName,
       value: m.orderCount,
     }));
@@ -197,7 +199,9 @@ export default function Dashboard() {
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
               <div className="mb-2 text-lg font-semibold">로딩 중...</div>
-              <div className="text-sm text-gray-400">대시보드 데이터를 불러오고 있습니다</div>
+              <div className="text-sm text-gray-400">
+                대시보드 데이터를 불러오고 있습니다
+              </div>
             </div>
           </div>
         </div>
@@ -212,11 +216,16 @@ export default function Dashboard() {
         <div className="mx-auto w-full max-w-7xl px-6 py-6">
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
-              <div className="mb-2 text-lg font-semibold text-red-500">{error}</div>
+              <div className="mb-2 text-lg font-semibold text-red-500">
+                {error}
+              </div>
               <div className="text-sm text-gray-400 mb-4">
                 백엔드 서버가 실행 중인지 확인해주세요 (localhost:8080)
               </div>
-              <Button variant="outline" onClick={() => window.location.reload()}>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
                 새로고침
               </Button>
             </div>
@@ -304,7 +313,11 @@ export default function Dashboard() {
           />
           <KpiCard
             title="평균 주문 금액"
-            value={hasData ? `₩${Math.round(kpi.avgOrderAmount).toLocaleString()}` : "—"}
+            value={
+              hasData
+                ? `₩${Math.round(kpi.avgOrderAmount).toLocaleString()}`
+                : "—"
+            }
             sub={hasData ? "총 매출 / 주문 건수" : "데이터 없음"}
           />
 
@@ -313,7 +326,11 @@ export default function Dashboard() {
               <CardTitle>방문 성별 비율</CardTitle>
             </CardHeader>
             <CardContent className="flex justify-center">
-              {hasData && genderData.length > 0 ? <TopMenuDonut data={genderData} /> : <EmptyState />}
+              {hasData && genderData.length > 0 ? (
+                <TopMenuDonut data={genderData} variant="gender" />
+              ) : (
+                <EmptyState />
+              )}
             </CardContent>
           </Card>
 
@@ -322,7 +339,11 @@ export default function Dashboard() {
               <CardTitle>방문 연령대 비율</CardTitle>
             </CardHeader>
             <CardContent className="flex justify-center">
-              {hasData && ageData.length > 0 ? <TopMenuDonut data={ageData} /> : <EmptyState />}
+              {hasData && ageData.length > 0 ? (
+                <TopMenuDonut data={ageData} />
+              ) : (
+                <EmptyState />
+              )}
             </CardContent>
           </Card>
         </div>
@@ -385,8 +406,8 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <CardTitle>
-                {applied.start === applied.end 
-                  ? "일간 매출 (최근 7일)" 
+                {applied.start === applied.end
+                  ? "일간 매출 (최근 7일)"
                   : `일간 매출 (${applied.start} ~ ${applied.end})`}
               </CardTitle>
             </CardHeader>
@@ -421,14 +442,11 @@ export default function Dashboard() {
                         ]}
                         labelFormatter={(label) => `${label}`}
                       />
-                      <Bar
-                        dataKey="sales"
-                        radius={[8, 8, 0, 0]}
-                      >
+                      <Bar dataKey="sales" radius={[8, 8, 0, 0]}>
                         {dailyChartData.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={entry.isSelected ? "#f06f6fff" : "#111827"} 
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.isSelected ? "#5c67ffff" : "#111827"}
                           />
                         ))}
                       </Bar>
@@ -452,7 +470,10 @@ export default function Dashboard() {
             {hasData && topMenuData.length > 0 ? (
               <div className="flex items-center justify-center gap-10">
                 {/* 도넛 */}
-                <TopMenuDonut data={topMenuData} />
+                <TopMenuDonutNoLabel
+                  data={topMenuData}
+                  colors={DEFAULT_COLORS}
+                />
 
                 {/* 리스트 */}
                 <div className="min-w-[220px]">
@@ -466,7 +487,19 @@ export default function Dashboard() {
                           <span className="w-7 text-gray-400 font-bold">
                             {idx + 1}.
                           </span>
-                          <span> {m.name}</span>
+
+                          {/*  색칩(도넛 색과 동일) */}
+                          <span
+                            className="inline-block h-3 w-3 rounded-sm"
+                            style={{
+                              backgroundColor:
+                                DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
+                            }}
+                          />
+
+                          <span className="truncate max-w-[150px]">
+                            {m.name}
+                          </span>
                         </span>
 
                         <span className="text-gray-500 text-base font-bold">
