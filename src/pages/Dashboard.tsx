@@ -1,5 +1,7 @@
 // src/pages/Dashboard.tsx
 import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_COLORS } from "../constants/colors";
+
 import {
   Card,
   CardContent,
@@ -22,9 +24,9 @@ import {
 } from "recharts";
 import { getDashboardSummary } from "../api/dashboard";
 import type { DashboardSummary } from "../api/dashboard";
+import TopMenuDonutNoLabel from "../components/Analytics/TopMenuDonutNoLabel";
 
 type Period = "today" | "yesterday" | "custom";
-
 /** ----- 유틸: yyyy-mm-dd ----- */
 function toYmd(d: Date) {
   const yyyy = d.getFullYear();
@@ -325,7 +327,11 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="flex justify-center">
               {hasData && genderData.length > 0 ? (
+<<<<<<< HEAD
                 <TopMenuDonut data={genderData} />
+=======
+                <TopMenuDonut data={genderData} variant="gender" />
+>>>>>>> admintest
               ) : (
                 <EmptyState />
               )}
@@ -356,7 +362,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="h-[240px] w-full">
                 {hasData && hourlyChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={240}>
                     <LineChart
                       data={hourlyChartData}
                       margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
@@ -412,7 +418,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="h-[240px] w-full">
                 {hasDailyData ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={240}>
                     <BarChart
                       data={dailyChartData}
                       margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
@@ -444,7 +450,11 @@ export default function Dashboard() {
                         {dailyChartData.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
+<<<<<<< HEAD
                             fill={entry.isSelected ? "#f06f6fff" : "#111827"}
+=======
+                            fill={entry.isSelected ? "#5c67ffff" : "#111827"}
+>>>>>>> admintest
                           />
                         ))}
                       </Bar>
@@ -468,7 +478,10 @@ export default function Dashboard() {
             {hasData && topMenuData.length > 0 ? (
               <div className="flex items-center justify-center gap-10">
                 {/* 도넛 */}
-                <TopMenuDonut data={topMenuData} />
+                <TopMenuDonutNoLabel
+                  data={topMenuData}
+                  colors={DEFAULT_COLORS}
+                />
 
                 {/* 리스트 */}
                 <div className="min-w-[220px]">
@@ -482,7 +495,19 @@ export default function Dashboard() {
                           <span className="w-7 text-gray-400 font-bold">
                             {idx + 1}.
                           </span>
-                          <span> {m.name}</span>
+
+                          {/*  색칩(도넛 색과 동일) */}
+                          <span
+                            className="inline-block h-3 w-3 rounded-sm"
+                            style={{
+                              backgroundColor:
+                                DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
+                            }}
+                          />
+
+                          <span className="truncate max-w-[150px]">
+                            {m.name}
+                          </span>
                         </span>
 
                         <span className="text-gray-500 text-base font-bold">
