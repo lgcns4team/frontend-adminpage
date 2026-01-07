@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../ui/Button";
 import OrderDetailModal from "./OrderDetailModal";
+import { getOrders, getOrderDetail } from "../../api/orders";
 
+// 타입 정의 (orders.ts와 동일하게 유지)
 type OrderStatus = "completed" | "canceled";
 
 type Order = {
@@ -20,75 +22,104 @@ type Order = {
   paymentMethod: string;
 };
 
-const mockOrders: Order[] = [
-  {
-    id: "3",
-    number: "#1245",
-    time: "오후 2:38",
-    channel: "키오스크",
-    total: 32000,
-    status: "completed",
-    items: [
-      {
-        name: "추천 세트",
-        quantity: 1,
-        price: 32000,
-        options: ["커피 4잔", "미니 케이크 2개", "음료 4개"],
-      },
-    ],
-    paymentMethod: "신용카드",
-  },
-  {
-    id: "4",
-    number: "#1244",
-    time: "오후 2:35",
-    channel: "키오스크",
-    total: 15500,
-    status: "completed",
-    items: [
-      {
-        name: "카페라떼",
-        quantity: 1,
-        price: 5500,
-        options: ["따뜻하게"],
-      },
-      { name: "아이스티", quantity: 1, price: 3500, options: ["라지"] },
-    ],
-    paymentMethod: "간편결제",
-  },
-  {
-    id: "5",
-    number: "#1243",
-    time: "오후 2:30",
-    channel: "키오스크",
-    total: 28000,
-    status: "canceled",
-    items: [
-      { name: "레몬티", quantity: 3, price: 13000, options: ["차갑게"] },
-      { name: "초코케이크", quantity: 2, price: 17000, options: [] },
-    ],
-    paymentMethod: "신용카드",
-  },
-];
-
 const statusMeta: Record<OrderStatus, { label: string; badgeClass: string }> = {
   completed: { label: "완료", badgeClass: "bg-emerald-500" },
   canceled: { label: "취소", badgeClass: "bg-rose-500" },
 };
 
 export default function OrdersTable() {
+  // 상태 관리
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Order | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  // 완료, 취소된 건 목록
-  const rows = useMemo(() => mockOrders, []);
+  // 컴포넌트 마운트 시 주문 목록 조회
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('주문 목록 조회 시작...');
+        const data = await getOrders();
+        console.log('주문 목록 조회 성공:', data.length, '건');
+        
+        setOrders(data);
+      } catch (err) {
+        console.error('주문 목록 조회 실패:', err);
+        setError('주문 목록을 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  // 주문 상세 조회
+  const handleSelectOrder = async (order: Order) => {
+    try {
+      setDetailLoading(true);
+      
+      console.log('주문 상세 조회 시작:', order.id);
+      const detail = await getOrderDetail(order.id);
+      console.log('주문 상세 조회 성공:', detail);
+      
+      setSelected(detail);
+    } catch (err) {
+      console.error('주문 상세 조회 실패:', err);
+      alert('주문 상세 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // 로딩 중 UI
+  if (loading) {
+    return (
+      <div className="overflow-hidden rounded-xl border bg-white">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="mb-2 text-sm text-gray-500">로딩 중...</div>
+            <div className="text-xs text-gray-400">주문 데이터를 불러오고 있습니다</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 발생 UI
+  if (error) {
+    return (
+      <div className="overflow-hidden rounded-xl border bg-white">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="mb-2 text-sm text-red-500">{error}</div>
+            <div className="text-xs text-gray-400">
+              서버가 실행 중인지 확인해주세요
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              새로고침
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="overflow-hidden rounded-xl border bg-white">
         <div className="border-b px-4 py-3">
-          <div className="text-sm font-semibold">주문 목록</div>
           <div className="text-xs text-slate-500">
-            완료/취소 상태만 표시합니다.
+            완료/취소 상태만 표시합니다. (총 {orders.length}건)
           </div>
         </div>
 
@@ -106,11 +137,11 @@ export default function OrdersTable() {
             </thead>
 
             <tbody className="divide-y">
-              {rows.map((o) => (
+              {orders.map((o) => (
                 <tr
                   key={o.id}
-                  className="cursor-pointer hover:bg-slate-50"
-                  onClick={() => setSelected(o)}
+                  className="cursor-pointer hover:bg-slate-50 transition-colors"
+                  onClick={() => handleSelectOrder(o)}
                 >
                   <td className="px-4 py-3 font-medium">{o.number}</td>
                   <td className="px-4 py-3">{o.time}</td>
@@ -132,22 +163,26 @@ export default function OrdersTable() {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelected(o);
+                        handleSelectOrder(o);
                       }}
+                      disabled={detailLoading}
                     >
-                      상세
+                      {detailLoading ? '로딩...' : '상세'}
                     </Button>
                   </td>
                 </tr>
               ))}
 
-              {rows.length === 0 && (
+              {orders.length === 0 && (
                 <tr>
                   <td
                     className="px-4 py-10 text-center text-slate-500"
                     colSpan={6}
                   >
-                    표시할 주문이 없습니다.
+                    <div>표시할 주문이 없습니다.</div>
+                    <div className="mt-1 text-xs text-slate-400">
+                      백엔드 DB에 주문 데이터가 있는지 확인해주세요
+                    </div>
                   </td>
                 </tr>
               )}

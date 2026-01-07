@@ -1,53 +1,22 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "../ui/Card";
 import { Button } from "../ui/Button";
+import { getMenus } from "../../api/menus";
 
 type MenuItem = {
   id: string;
   name: string;
   price: number;
-  image: string; // 업로드 미리보기 URL or public 경로
+  image: string;
   isActive: boolean;
   isSoldOut: boolean;
+  categoryName?: string;
 };
 
-const initialItems: MenuItem[] = [
-  {
-    id: "1",
-    name: "아메리카노",
-    price: 4900,
-    image: "",
-    isActive: true,
-    isSoldOut: false,
-  },
-  {
-    id: "2",
-    name: "카페라떼",
-    price: 5500,
-    image: "",
-    isActive: true,
-    isSoldOut: false,
-  },
-  {
-    id: "3",
-    name: "미니케이크",
-    price: 3900,
-    image: "",
-    isActive: true,
-    isSoldOut: true,
-  },
-  {
-    id: "4",
-    name: "레몬티",
-    price: 7500,
-    image: "",
-    isActive: false,
-    isSoldOut: false,
-  },
-];
-
 export default function MenuGrid() {
-  const [items, setItems] = useState<MenuItem[]>(initialItems);
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // 등록 모달 상태
   const [open, setOpen] = useState(false);
@@ -62,6 +31,29 @@ export default function MenuGrid() {
     const n = Math.max(0, ...items.map((x) => Number(x.id))) + 1;
     return String(n);
   }, [items]);
+
+  // 컴포넌트 마운트 시 메뉴 목록 조회
+  useEffect(() => {
+    const fetchMenus = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('메뉴 목록 조회 시작...');
+        const data = await getMenus();
+        console.log('메뉴 목록 조회 성공:', data.length, '개');
+        
+        setItems(data);
+      } catch (err) {
+        console.error('메뉴 목록 조회 실패:', err);
+        setError('메뉴 목록을 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMenus();
+  }, []);
 
   const toggleActive = (id: string) =>
     setItems((prev) =>
@@ -83,7 +75,6 @@ export default function MenuGrid() {
   const resetForm = () => {
     setName("");
     setPrice("");
-    // objectURL 해제
     if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     setPreviewUrl("");
     if (fileRef.current) fileRef.current.value = "";
@@ -97,7 +88,6 @@ export default function MenuGrid() {
   };
 
   const openEditModal = (item: MenuItem) => {
-    // 기존 값 주입
     setMode("edit");
     setEditingId(item.id);
     setName(item.name);
@@ -108,13 +98,11 @@ export default function MenuGrid() {
 
   const closeModal = () => {
     setOpen(false);
-    // 닫을 때도 해제
     resetForm();
   };
 
   const onPickFile = (file?: File | null) => {
     if (!file) return;
-    // 기존 objectURL 해제
     if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
@@ -122,11 +110,11 @@ export default function MenuGrid() {
 
   const onSubmit = () => {
     if (!name.trim()) {
-      alert("메뉴 이름을 입력해줘!");
+      alert("메뉴 이름을 입력해주세요!");
       return;
     }
     if (price === "" || Number.isNaN(Number(price)) || Number(price) <= 0) {
-      alert("가격을 올바르게 입력해줘!");
+      alert("가격을 올바르게 입력해주세요!");
       return;
     }
 
@@ -141,7 +129,6 @@ export default function MenuGrid() {
       };
       setItems((prev) => [newItem, ...prev]);
     } else {
-      // edit
       if (!editingId) return;
       setItems((prev) =>
         prev.map((it) =>
@@ -160,6 +147,40 @@ export default function MenuGrid() {
     setOpen(false);
     resetForm();
   };
+
+  // 로딩 중
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="mb-2 text-sm text-gray-500">로딩 중...</div>
+          <div className="text-xs text-gray-400">메뉴 데이터를 불러오고 있습니다</div>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 발생
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="mb-2 text-sm text-red-500">{error}</div>
+          <div className="text-xs text-gray-400">
+            서버가 실행 중인지 확인해주세요
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-4"
+            onClick={() => window.location.reload()}
+          >
+            새로고침
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -197,6 +218,9 @@ export default function MenuGrid() {
               </div>
 
               <div className="mb-1 font-semibold">{it.name}</div>
+              {it.categoryName && (
+                <div className="mb-1 text-xs text-gray-500">{it.categoryName}</div>
+              )}
               <div className="mb-3 text-lg font-bold">
                 ₩{it.price.toLocaleString()}
               </div>
@@ -225,7 +249,7 @@ export default function MenuGrid() {
                 </Button>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => openEditModal(it)}>
                     수정
                   </Button>
                   <Button
@@ -241,6 +265,15 @@ export default function MenuGrid() {
           </Card>
         ))}
       </div>
+
+      {items.length === 0 && (
+        <div className="py-20 text-center text-gray-500">
+          <div>표시할 메뉴가 없습니다.</div>
+          <div className="mt-1 text-xs text-gray-400">
+            백엔드 DB에 메뉴 데이터가 있는지 확인해주세요
+          </div>
+        </div>
+      )}
 
       {/* 등록 모달 */}
       {open && (
@@ -286,8 +319,7 @@ export default function MenuGrid() {
                       className="block w-full text-sm"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      지금은 “미리보기용” 저장입니다. (나중에 서버 업로드로
-                      연결)
+                      지금은 "미리보기용" 저장입니다. (나중에 서버 업로드로 연결)
                     </p>
                   </div>
                 </div>
@@ -334,4 +366,4 @@ export default function MenuGrid() {
       )}
     </div>
   );
-}
+};

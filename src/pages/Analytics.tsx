@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -6,16 +6,10 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import Button from "../components/ui/Button";
-
 import SalesTrendChart from "../components/Analytics/SalesTrendChart";
 import DayOfWeekChart from "../components/Analytics/DayOfWeekChart";
-
-import {
-  MOCK_SALES,
-  inRange,
-  sumKpi,
-  groupByWeekday,
-} from "../components/Analytics/MockSales";
+import { getDashboardSummary } from "../api/dashboard";
+import type { DashboardSummary } from "../api/dashboard";
 
 type Period = "today" | "yesterday" | "custom";
 
@@ -25,9 +19,11 @@ function toYmd(d: Date) {
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
+
 function todayStr() {
   return toYmd(new Date());
 }
+
 function yesterdayStr() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
@@ -36,16 +32,18 @@ function yesterdayStr() {
 
 export default function Analytics() {
   const [period, setPeriod] = useState<Period>("today");
-
-  // 기간설정 입력값(화면에서 바꾸는 값)
-  const [start, setStart] = useState("2025-12-10");
-  const [end, setEnd] = useState("2025-12-16");
-
-  // 실제 적용된 기간 (오늘/어제 클릭 or 적용 버튼)
+  const [start, setStart] = useState("2025-12-23");
+  const [end, setEnd] = useState("2025-12-31");
   const [applied, setApplied] = useState<{ start: string; end: string }>({
     start: todayStr(),
     end: todayStr(),
   });
+
+  // API 데이터 (KPI용 / 차트용 분리)
+  const [kpiData, setKpiData] = useState<DashboardSummary | null>(null);
+  const [chartData, setChartData] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePeriod = (p: Period) => {
     setPeriod(p);
@@ -54,7 +52,6 @@ export default function Analytics() {
       const y = yesterdayStr();
       setApplied({ start: y, end: y });
     }
-    // custom은 "적용" 누를 때만 반영
   };
 
   const applyCustomRange = () => {
@@ -63,22 +60,128 @@ export default function Analytics() {
     setApplied({ start, end });
   };
 
-  // 적용된 기간으로 데이터 필터링
-  const filtered = useMemo(() => {
-    return MOCK_SALES.filter((p) =>
-      inRange(p.date, applied.start, applied.end)
-    );
+  // API 호출 - KPI와 차트 데이터 분리
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('매출분석 데이터 조회:', applied.start, '~', applied.end);
+        
+        // 1. KPI용 데이터 (선택한 기간 그대로)
+        const kpiResponse = await getDashboardSummary({
+          startDate: applied.start,
+          endDate: applied.end,
+        });
+        setKpiData(kpiResponse);
+        
+        // 2. 차트용 데이터 (단일 날짜면 7일로 확장)
+        let chartStartDate = applied.start;
+        let chartEndDate = applied.end;
+        
+        if (applied.start === applied.end) {
+          const endDate = new Date(applied.end);
+          const startDate = new Date(endDate);
+          startDate.setDate(endDate.getDate() - 6); // 7일 (오늘 포함)
+          chartStartDate = toYmd(startDate);
+        }
+        
+        const chartResponse = await getDashboardSummary({
+          startDate: chartStartDate,
+          endDate: chartEndDate,
+        });
+        setChartData(chartResponse);
+        
+        console.log('매출분석 데이터 조회 성공');
+      } catch (err) {
+        console.error('매출분석 데이터 조회 실패:', err);
+        setError('데이터를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [applied.start, applied.end]);
 
-  // KPI 계산
-  const kpi = useMemo(() => sumKpi(filtered), [filtered]);
+  // KPI 계산 (선택한 기간 데이터)
+  const kpi = useMemo(() => {
+    if (!kpiData) return { totalSales: 0, totalOrders: 0, avgOrder: 0 };
+    return {
+      totalSales: kpiData.totalSales,
+      totalOrders: kpiData.totalOrders,
+      avgOrder: Math.round(kpiData.avgOrderAmount),
+    };
+  }, [kpiData]);
 
-  // 차트용 데이터
-  const trendData = useMemo(
-    () => filtered.map((p) => ({ date: p.date, sales: p.sales })),
-    [filtered]
-  );
-  const weekdayData = useMemo(() => groupByWeekday(filtered), [filtered]);
+  // 일별 매출 추이 데이터 (7일 확장 데이터)
+  const trendData = useMemo(() => {
+    if (!chartData || !chartData.dailySales) return [];
+    
+    // 단일 날짜 선택 시에만 강조 (오늘/어제)
+    const shouldHighlight = applied.start === applied.end;
+    const selectedDate = applied.end;
+    
+    return chartData.dailySales.map(d => ({
+      date: d.dateLabel,
+      sales: d.amount,
+      dayOfWeek: d.dayOfWeek,
+      isSelected: shouldHighlight && d.date === selectedDate,
+    }));
+  }, [chartData, applied.start, applied.end]);
+
+  // 요일별 매출 데이터 (7일 확장 데이터)
+  const weekdayData = useMemo(() => {
+    if (!chartData || !chartData.dailySales) return [];
+    
+    // 요일별로 그룹화
+    const weekdayMap = new Map<string, number>();
+    chartData.dailySales.forEach(d => {
+      const current = weekdayMap.get(d.dayOfWeek) || 0;
+      weekdayMap.set(d.dayOfWeek, current + d.amount);
+    });
+
+    // 월~일 순서로 정렬
+    const order = ["월", "화", "수", "목", "금", "토", "일"];
+    return order.map(day => ({
+      day: day + "요일",
+      sales: weekdayMap.get(day) || 0,
+    }));
+  }, [chartData]);
+
+  // 로딩 중
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="mb-2 text-lg font-semibold">로딩 중...</div>
+            <div className="text-sm text-gray-400">매출 데이터를 불러오고 있습니다</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 발생
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="mb-2 text-lg font-semibold text-red-500">{error}</div>
+            <div className="text-sm text-gray-400 mb-4">
+              백엔드 서버가 실행 중인지 확인해주세요
+            </div>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              새로고침
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -177,7 +280,7 @@ export default function Analytics() {
       <SalesTrendChart data={trendData} />
       <DayOfWeekChart data={weekdayData} />
 
-      {filtered.length === 0 && (
+      {kpi.totalOrders === 0 && (
         <p className="text-sm text-gray-500">
           선택한 기간에 표시할 데이터가 없습니다.
         </p>
