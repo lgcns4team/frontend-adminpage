@@ -164,10 +164,8 @@ export default function OrdersTable() {
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSelectOrder(o);
-                      }}
-                      disabled={detailLoading}
-                    >
-                      {detailLoading ? '로딩...' : '상세'}
+                      }}> 
+                        상세
                     </Button>
                   </td>
                 </tr>

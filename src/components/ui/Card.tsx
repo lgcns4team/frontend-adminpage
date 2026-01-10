@@ -40,7 +40,7 @@ export function CardContent({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
-  return <div {...props} className={cx("p-5 pt-0", className)} />;
+  return <div {...props} className={cx("p-5 pt-5", className)} />;
 }
 
 export default Card;
