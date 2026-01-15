@@ -33,7 +33,7 @@ export default function OrdersTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Order | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [_detailLoading, setDetailLoading] = useState(false);
 
   // 컴포넌트 마운트 시 주문 목록 조회
   useEffect(() => {
